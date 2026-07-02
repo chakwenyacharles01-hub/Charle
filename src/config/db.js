@@ -6,7 +6,18 @@ let pool;
 
 function getDatabaseConfig() {
   if (process.env.MYSQL_URL) {
-    return process.env.MYSQL_URL;
+    const url = new URL(process.env.MYSQL_URL);
+    return {
+      host: url.hostname,
+      port: Number(url.port || 3306),
+      user: decodeURIComponent(url.username),
+      password: decodeURIComponent(url.password),
+      database: url.pathname.replace(/^\//, ''),
+      waitForConnections: true,
+      connectionLimit: Number(process.env.DB_POOL_LIMIT || 10),
+      decimalNumbers: true,
+      namedPlaceholders: false
+    };
   }
 
   return {
@@ -17,6 +28,7 @@ function getDatabaseConfig() {
     database: process.env.MYSQLDATABASE || process.env.DB_NAME || 'netvend',
     waitForConnections: true,
     connectionLimit: Number(process.env.DB_POOL_LIMIT || 10),
+    decimalNumbers: true,
     namedPlaceholders: false
   };
 }
