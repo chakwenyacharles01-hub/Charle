@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Login - NetVend</title>
+  <link rel="icon" href="/img/icon.png">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="container" style="max-width:380px; margin-top:80px;">
+    <div class="center" style="margin-bottom:18px;">
+      <img src="/img/logo.png" alt="NetVend" style="height:90px;">
+    </div>
+    <div class="card">
+      <h2 style="text-align:center;">Operator Login</h2>
+      <% if (error) { %><div class="error"><%= error %></div><% } %>
+      <form method="POST" action="/admin/login">
+        <label>Username</label>
+        <input type="text" name="username" required autofocus>
+        <label>Password</label>
+        <input type="password" name="password" required>
+        <button type="submit" style="width:100%; margin-top:16px;">Log in</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

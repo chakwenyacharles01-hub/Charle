@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard - NetVend</title>
+  <link rel="icon" href="/img/icon.png">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand-lockup"><img src="/img/icon.png" alt="NetVend"><span class="word">Net<span class="accent">Vend</span></span></div>
+    <div>
+      <a href="/admin/dashboard">Dashboard</a>
+      <a href="/admin/packages">Packages</a>
+      <a href="/admin/vouchers">Vouchers</a>
+      <a href="/admin/payments">Payments</a>
+      <a href="/admin/router-status">Router</a>
+      <form class="inline" method="POST" action="/admin/logout" style="display:inline;">
+        <a href="#" onclick="this.closest('form').submit(); return false;">Logout (<%= adminUsername %>)</a>
+      </form>
+    </div>
+  </div>
+
+  <div class="container">
+    <% if (!routerOnline) { %>
+      <div class="error">⚠ Could not reach the MikroTik router. Check the connection on the <a href="/admin/router-status">Router status</a> page.</div>
+    <% } %>
+
+    <div class="grid">
+      <div class="card stat">
+        <div class="num">K<%= todayRevenue.toFixed(2) %></div>
+        <div class="label">Revenue Today</div>
+      </div>
+      <div class="card stat">
+        <div class="num">K<%= monthRevenue.toFixed(2) %></div>
+        <div class="label">Revenue This Month</div>
+      </div>
+      <div class="card stat">
+        <div class="num"><%= pendingPayments %></div>
+        <div class="label">Pending Payments</div>
+      </div>
+      <div class="card stat">
+        <div class="num"><%= activeUsers.length %></div>
+        <div class="label">Active Sessions Now</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Voucher Stats</h3>
+      <table>
+        <tr><th>Status</th><th>Count</th></tr>
+        <% voucherStats.forEach(v => { %>
+          <tr><td><%= v.status %></td><td><%= v.c %></td></tr>
+        <% }) %>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Active Sessions</h3>
+      <% if (activeUsers.length === 0) { %>
+        <p class="muted">No one is currently connected.</p>
+      <% } else { %>
+      <table>
+        <tr><th>User</th><th>IP</th><th>MAC</th><th>Uptime</th></tr>
+        <% activeUsers.forEach(u => { %>
+          <tr>
+            <td><%= u.user %></td>
+            <td><%= u.address %></td>
+            <td><%= u['mac-address'] %></td>
+            <td><%= u.uptime %></td>
+          </tr>
+        <% }) %>
+      </table>
+      <% } %>
+    </div>
+
+    <div class="card">
+      <h3>Change Password</h3>
+      <form method="POST" action="/admin/change-password">
+        <label>New Password</label>
+        <input type="password" name="new_password" required minlength="6">
+        <button type="submit" style="margin-top:12px;">Update Password</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

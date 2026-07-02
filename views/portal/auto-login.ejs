@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Connecting...</title>
+  <link rel="icon" href="/img/icon.png">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="container" style="max-width:480px;">
+    <div class="card center">
+      <h2>✅ You're in!</h2>
+      <p>Connecting you to the internet...</p>
+      <p class="voucher-code"><%= username %></p>
+      <p class="muted">Keep this code - if you get disconnected you can re-enter it on the WiFi login page to reconnect until it expires.</p>
+    </div>
+  </div>
+
+  <% if (linkLoginOnly) { %>
+  <!-- Auto-submit to the MikroTik hotspot's login handler so the customer
+       doesn't have to type the code manually. If linkLoginOnly wasn't passed
+       (e.g. voucher redeemed outside of a live hotspot redirect), this is
+       skipped and the code above is just shown to the user. -->
+  <form id="mtLogin" method="POST" action="<%= linkLoginOnly %>">
+    <input type="hidden" name="username" value="<%= username %>">
+    <input type="hidden" name="password" value="<%= password %>">
+  </form>
+  <script>
+    document.getElementById('mtLogin').submit();
+  </script>
+  <% } %>
+</body>
+</html>

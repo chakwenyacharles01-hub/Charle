@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Router Status - NetVend</title>
+  <link rel="icon" href="/img/icon.png">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand-lockup"><img src="/img/icon.png" alt="NetVend"><span class="word">Net<span class="accent">Vend</span></span></div>
+    <div>
+      <a href="/admin/dashboard">Dashboard</a>
+      <a href="/admin/packages">Packages</a>
+      <a href="/admin/vouchers">Vouchers</a>
+      <a href="/admin/payments">Payments</a>
+      <a href="/admin/router-status">Router</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <h3>MikroTik Connection Test</h3>
+      <% if (result.success) { %>
+        <div class="success">✅ Connected successfully. Router identity: <strong><%= result.identity[0].name %></strong></div>
+      <% } else { %>
+        <div class="error">❌ Could not connect: <%= result.error %></div>
+        <p class="muted">Check your .env values (MIKROTIK_HOST, MIKROTIK_USER, MIKROTIK_PASSWORD, MIKROTIK_PORT) and make sure the API service is enabled on the router (IP → Services → api).</p>
+      <% } %>
+    </div>
+  </div>
+</body>
+</html>

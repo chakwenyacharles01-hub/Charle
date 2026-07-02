@@ -1,0 +1,3 @@
+[build]
+  publish = "marketing"
+  command = "echo 'static site, no build needed'"

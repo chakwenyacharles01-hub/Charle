@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  netvend:
+    build: .
+    container_name: netvend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    # Uncomment if using the WireGuard sidecar below, so netvend routes
+    # its router traffic through the tunnel container's network namespace:
+    # network_mode: "service:wireguard"
+
+  # OPTIONAL: only needed if NetVend runs on a VPS and must reach a router
+  # that's on a private LAN elsewhere (e.g. your business premises).
+  # This creates an encrypted tunnel from the VPS back to a WireGuard
+  # endpoint you run at the router's site (a $10 travel router, an old
+  # phone, or the MikroTik itself can act as a WireGuard peer).
+  # See README-DEPLOY.md for full setup.
+  #
+  # wireguard:
+  #   image: linuxserver/wireguard
+  #   container_name: netvend-tunnel
+  #   cap_add:
+  #     - NET_ADMIN
+  #     - SYS_MODULE
+  #   volumes:
+  #     - ./wireguard-config:/config
+  #   restart: unless-stopped

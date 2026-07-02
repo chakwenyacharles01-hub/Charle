@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Payments - NetVend</title>
+  <link rel="icon" href="/img/icon.png">
+  <link rel="stylesheet" href="/css/style.css">
+  <meta http-equiv="refresh" content="20">
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand-lockup"><img src="/img/icon.png" alt="NetVend"><span class="word">Net<span class="accent">Vend</span></span></div>
+    <div>
+      <a href="/admin/dashboard">Dashboard</a>
+      <a href="/admin/packages">Packages</a>
+      <a href="/admin/vouchers">Vouchers</a>
+      <a href="/admin/payments">Payments</a>
+      <a href="/admin/router-status">Router</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <h3>Payments Queue</h3>
+      <p class="muted">This page auto-refreshes every 20s. Confirm a mobile money or cash payment once you've verified it landed in your account / till.</p>
+      <table>
+        <tr><th>#</th><th>Package</th><th>Method</th><th>Phone</th><th>Reference</th><th>Amount</th><th>Status</th><th>Voucher</th><th></th></tr>
+        <% payments.forEach(p => { %>
+          <tr>
+            <td><%= p.id %></td>
+            <td><%= p.package_name %></td>
+            <td><%= p.method %></td>
+            <td><%= p.phone || '-' %></td>
+            <td><%= p.reference || '-' %></td>
+            <td>K<%= p.amount.toFixed(2) %></td>
+            <td><span class="badge <%= p.status %>"><%= p.status %></span></td>
+            <td><%= p.voucher_code || '-' %></td>
+            <td>
+              <% if (p.status === 'pending') { %>
+              <form class="inline" method="POST" action="/admin/payments/<%= p.id %>/confirm">
+                <button type="submit">Confirm</button>
+              </form>
+              <form class="inline" method="POST" action="/admin/payments/<%= p.id %>/reject">
+                <button type="submit" class="btn-danger">Reject</button>
+              </form>
+              <% } %>
+            </td>
+          </tr>
+        <% }) %>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

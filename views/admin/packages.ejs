@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Packages - NetVend</title>
+  <link rel="icon" href="/img/icon.png">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand-lockup"><img src="/img/icon.png" alt="NetVend"><span class="word">Net<span class="accent">Vend</span></span></div>
+    <div>
+      <a href="/admin/dashboard">Dashboard</a>
+      <a href="/admin/packages">Packages</a>
+      <a href="/admin/vouchers">Vouchers</a>
+      <a href="/admin/payments">Payments</a>
+      <a href="/admin/router-status">Router</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <h3>Add New Package</h3>
+      <form method="POST" action="/admin/packages">
+        <label>Name</label>
+        <input type="text" name="name" placeholder="e.g. 2 Hours" required>
+        <label>Price (K)</label>
+        <input type="number" step="0.01" name="price" required>
+        <label>Duration (minutes)</label>
+        <input type="number" name="duration_minutes" placeholder="e.g. 120" required>
+        <label>Download Speed (e.g. 5M) - optional</label>
+        <input type="text" name="download_speed" placeholder="5M">
+        <label>Upload Speed (e.g. 2M) - optional</label>
+        <input type="text" name="upload_speed" placeholder="2M">
+        <label>Data Cap in MB - optional (blank = unlimited)</label>
+        <input type="number" name="data_cap_mb">
+        <button type="submit" style="margin-top:14px;">Add Package</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3>Existing Packages</h3>
+      <table>
+        <tr><th>Name</th><th>Price</th><th>Duration</th><th>Speed</th><th>Data Cap</th><th>Status</th><th></th></tr>
+        <% packages.forEach(p => { %>
+          <tr>
+            <td><%= p.name %></td>
+            <td>K<%= p.price.toFixed(2) %></td>
+            <td><%= p.duration_minutes %> min</td>
+            <td><%= p.download_speed || '-' %>/<%= p.upload_speed || '-' %></td>
+            <td><%= p.data_cap_mb ? p.data_cap_mb + ' MB' : 'Unlimited' %></td>
+            <td><span class="badge <%= p.active ? 'confirmed' : 'rejected' %>"><%= p.active ? 'Active' : 'Disabled' %></span></td>
+            <td>
+              <form class="inline" method="POST" action="/admin/packages/<%= p.id %>/toggle">
+                <button type="submit" class="btn-secondary"><%= p.active ? 'Disable' : 'Enable' %></button>
+              </form>
+              <form class="inline" method="POST" action="/admin/packages/<%= p.id %>/delete" onsubmit="return confirm('Delete this package?');">
+                <button type="submit" class="btn-danger">Delete</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

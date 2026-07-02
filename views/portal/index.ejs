@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Get Wi-Fi Access - NetVend</title>
+  <link rel="icon" href="/img/icon.png">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="container" style="max-width:480px;">
+    <div class="center" style="margin-bottom:6px;">
+      <img src="/img/logo.png" alt="NetVend" style="height:110px;">
+    </div>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="error"><%= error %></div>
+    <% } %>
+
+    <div class="card">
+      <h3>Already have a voucher code?</h3>
+      <form method="POST" action="/portal/redeem">
+        <% Object.keys(mikrotikParams || {}).forEach(key => { %>
+          <input type="hidden" name="<%= key %>" value="<%= mikrotikParams[key] %>">
+        <% }) %>
+        <label>Voucher code</label>
+        <input type="text" name="code" placeholder="e.g. XJ7KQ2MP" required style="text-transform:uppercase;">
+        <button type="submit" style="margin-top:12px;">Connect</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3>Buy Access</h3>
+      <form id="buyForm">
+        <label>Choose a package</label>
+        <div class="grid">
+          <% packages.forEach(p => { %>
+            <label class="pkg-card" style="display:block;">
+              <input type="radio" name="package_id" value="<%= p.id %>" required style="width:auto; display:inline;">
+              <div><%= p.name %></div>
+              <div class="price">K<%= p.price.toFixed(2) %></div>
+              <div class="muted"><%= p.download_speed || '' %>/<%= p.upload_speed || '' %></div>
+            </label>
+          <% }) %>
+        </div>
+
+        <label style="margin-top:16px;">Payment method</label>
+        <select id="method">
+          <option value="cash">Cash (pay attendant)</option>
+          <option value="airtel">Airtel Money</option>
+          <option value="mtn">MTN Mobile Money</option>
+          <option value="zamtel">Zamtel Kwacha</option>
+        </select>
+
+        <div id="momoFields" style="display:none; margin-top:10px;">
+          <p class="muted" id="momoInstruction"></p>
+          <label>Your phone number</label>
+          <input type="text" id="phone" placeholder="09XXXXXXXX">
+          <label>Transaction reference (from the SMS confirmation)</label>
+          <input type="text" id="reference" placeholder="e.g. MP2306.1234.A56789">
+        </div>
+
+        <button type="submit" style="margin-top:16px;">Continue</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const momoNumbers = <%- JSON.stringify(momoNumbers) %>;
+    const methodSelect = document.getElementById('method');
+    const momoFields = document.getElementById('momoFields');
+    const momoInstruction = document.getElementById('momoInstruction');
+
+    methodSelect.addEventListener('change', () => {
+      const val = methodSelect.value;
+      if (val === 'cash') {
+        momoFields.style.display = 'none';
+      } else {
+        momoFields.style.display = 'block';
+        momoInstruction.textContent = `Send money to ${momoNumbers[val]} (${val.toUpperCase()}), then enter your phone and the transaction reference below.`;
+      }
+    });
+
+    document.getElementById('buyForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const packageId = document.querySelector('input[name="package_id"]:checked');
+      if (!packageId) { alert('Please choose a package'); return; }
+      const method = methodSelect.value;
+
+      const form = document.createElement('form');
+      form.method = 'POST';
+
+      const pkgInput = document.createElement('input');
+      pkgInput.name = 'package_id';
+      pkgInput.value = packageId.value;
+      form.appendChild(pkgInput);
+
+      if (method === 'cash') {
+        form.action = '/portal/pay/cash';
+      } else {
+        form.action = '/portal/pay/momo';
+        const netInput = document.createElement('input');
+        netInput.name = 'network';
+        netInput.value = method;
+        form.appendChild(netInput);
+
+        const phoneInput = document.createElement('input');
+        phoneInput.name = 'phone';
+        phoneInput.value = document.getElementById('phone').value;
+        form.appendChild(phoneInput);
+
+        const refInput = document.createElement('input');
+        refInput.name = 'reference';
+        refInput.value = document.getElementById('reference').value;
+        form.appendChild(refInput);
+      }
+
+      document.body.appendChild(form);
+      form.submit();
+    });
+  </script>
+</body>
+</html>
