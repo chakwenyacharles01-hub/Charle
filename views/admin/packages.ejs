@@ -45,7 +45,7 @@
         <% packages.forEach(p => { %>
           <tr>
             <td><%= p.name %></td>
-            <td>K<%= p.price.toFixed(2) %></td>
+            <td>K<%= Number(p.price).toFixed(2) %></td>
             <td><%= p.duration_minutes %> min</td>
             <td><%= p.download_speed || '-' %>/<%= p.upload_speed || '-' %></td>
             <td><%= p.data_cap_mb ? p.data_cap_mb + ' MB' : 'Unlimited' %></td>

@@ -38,7 +38,7 @@
             <label class="pkg-card" style="display:block;">
               <input type="radio" name="package_id" value="<%= p.id %>" required style="width:auto; display:inline;">
               <div><%= p.name %></div>
-              <div class="price">K<%= p.price.toFixed(2) %></div>
+              <div class="price">K<%= Number(p.price).toFixed(2) %></div>
               <div class="muted"><%= p.download_speed || '' %>/<%= p.upload_speed || '' %></div>
             </label>
           <% }) %>
