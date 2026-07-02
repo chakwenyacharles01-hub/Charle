@@ -92,13 +92,13 @@ it can see the router's identity.
 
 ## Part 2: Install and run the app
 
-Requires Node.js 18+.
+Requires Node.js 18+ and MySQL 8+.
 
 ```bash
 cd wifi-billing
 npm install
 cp .env.example .env
-# edit .env with your router IP, API user/password, admin login, momo numbers
+# edit .env with your MySQL credentials, router IP, API user/password, admin login, momo numbers
 npm start
 ```
 
@@ -163,7 +163,8 @@ expire from sitting on a shelf.
 ## Notes & things to customize
 - Speed formats (`download_speed`/`upload_speed`) follow MikroTik's
   rate-limit syntax, e.g. `5M`, `512k`.
-- SQLite database lives in `data/billing.db` - back this up periodically.
+- NetVend stores billing data in MySQL. Back up the MySQL database
+  periodically, especially vouchers and payments.
 - Change `SESSION_SECRET` and both default passwords before going live.
 - This app assumes one router. Scaling to multiple sites would mean adding a
   `location`/`router_id` column throughout and picking the right MikroTik

@@ -5,15 +5,39 @@ services:
     build: .
     container_name: netvend
     restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
     ports:
       - "3000:3000"
-    volumes:
-      - ./data:/app/data
     env_file:
       - .env
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-netvend}
+      DB_USER: ${DB_USER:-netvend}
+      DB_PASSWORD: ${DB_PASSWORD:-netvend}
     # Uncomment if using the WireGuard sidecar below, so netvend routes
     # its router traffic through the tunnel container's network namespace:
     # network_mode: "service:wireguard"
+
+  mysql:
+    image: mysql:8.4
+    container_name: netvend-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-netvend}
+      MYSQL_USER: ${DB_USER:-netvend}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-netvend}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-netvend_root_password}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   # OPTIONAL: only needed if NetVend runs on a VPS and must reach a router
   # that's on a private LAN elsewhere (e.g. your business premises).
@@ -31,3 +55,6 @@ services:
   #   volumes:
   #     - ./wireguard-config:/config
   #   restart: unless-stopped
+
+volumes:
+  mysql-data:

@@ -12,15 +12,19 @@ router.get('/login', (req, res) => {
   res.render('admin/login', { error: null });
 });
 
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res, next) => {
   const { username, password } = req.body;
-  const admin = db.prepare('SELECT * FROM admins WHERE username = ?').get(username);
-  if (!admin || !bcrypt.compareSync(password, admin.password_hash)) {
-    return res.render('admin/login', { error: 'Invalid username or password' });
+  try {
+    const admin = await db.get('SELECT * FROM admins WHERE username = ?', [username]);
+    if (!admin || !bcrypt.compareSync(password, admin.password_hash)) {
+      return res.render('admin/login', { error: 'Invalid username or password' });
+    }
+    req.session.adminId = admin.id;
+    req.session.adminUsername = admin.username;
+    res.redirect('/admin/dashboard');
+  } catch (err) {
+    next(err);
   }
-  req.session.adminId = admin.id;
-  req.session.adminUsername = admin.username;
-  res.redirect('/admin/dashboard');
 });
 
 router.post('/logout', (req, res) => {
@@ -28,101 +32,126 @@ router.post('/logout', (req, res) => {
 });
 
 // ---------- DASHBOARD ----------
-router.get('/dashboard', requireAdmin, async (req, res) => {
-  const todayRevenue = db.prepare(`
-    SELECT COALESCE(SUM(amount),0) AS total FROM payments
-    WHERE status = 'confirmed' AND date(created_at) = date('now')
-  `).get().total;
-
-  const monthRevenue = db.prepare(`
-    SELECT COALESCE(SUM(amount),0) AS total FROM payments
-    WHERE status = 'confirmed' AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')
-  `).get().total;
-
-  const pendingPayments = db.prepare(`SELECT COUNT(*) AS c FROM payments WHERE status = 'pending'`).get().c;
-  const voucherStats = db.prepare(`
-    SELECT status, COUNT(*) AS c FROM vouchers GROUP BY status
-  `).all();
-
-  let activeUsers = [];
-  let routerOnline = true;
+router.get('/dashboard', requireAdmin, async (req, res, next) => {
   try {
-    activeUsers = await mikrotik.getActiveUsers();
-  } catch (err) {
-    routerOnline = false;
-  }
+    const todayRevenue = (await db.get(`
+      SELECT COALESCE(SUM(amount),0) AS total FROM payments
+      WHERE status = 'confirmed' AND DATE(created_at) = CURDATE()
+    `)).total;
 
-  res.render('admin/dashboard', {
-    todayRevenue, monthRevenue, pendingPayments, voucherStats,
-    activeUsers, routerOnline, adminUsername: req.session.adminUsername
-  });
+    const monthRevenue = (await db.get(`
+      SELECT COALESCE(SUM(amount),0) AS total FROM payments
+      WHERE status = 'confirmed' AND DATE_FORMAT(created_at, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
+    `)).total;
+
+    const pendingPayments = (await db.get(`SELECT COUNT(*) AS c FROM payments WHERE status = 'pending'`)).c;
+    const voucherStats = await db.all(`
+      SELECT status, COUNT(*) AS c FROM vouchers GROUP BY status
+    `);
+
+    let activeUsers = [];
+    let routerOnline = true;
+    try {
+      activeUsers = await mikrotik.getActiveUsers();
+    } catch (err) {
+      routerOnline = false;
+    }
+
+    res.render('admin/dashboard', {
+      todayRevenue, monthRevenue, pendingPayments, voucherStats,
+      activeUsers, routerOnline, adminUsername: req.session.adminUsername
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ---------- PACKAGES ----------
-router.get('/packages', requireAdmin, (req, res) => {
-  const packages = db.prepare('SELECT * FROM packages ORDER BY price ASC').all();
-  res.render('admin/packages', { packages, adminUsername: req.session.adminUsername });
+router.get('/packages', requireAdmin, async (req, res, next) => {
+  try {
+    const packages = await db.all('SELECT * FROM packages ORDER BY price ASC');
+    res.render('admin/packages', { packages, adminUsername: req.session.adminUsername });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/packages', requireAdmin, (req, res) => {
+router.post('/packages', requireAdmin, async (req, res, next) => {
   const { name, price, duration_minutes, download_speed, upload_speed, data_cap_mb } = req.body;
-  db.prepare(`
+  try {
+    await db.run(`
     INSERT INTO packages (name, price, duration_minutes, download_speed, upload_speed, data_cap_mb)
     VALUES (?, ?, ?, ?, ?, ?)
-  `).run(name, price, duration_minutes, download_speed || null, upload_speed || null, data_cap_mb || null);
-  res.redirect('/admin/packages');
+    `, [name, price, duration_minutes, download_speed || null, upload_speed || null, data_cap_mb || null]);
+    res.redirect('/admin/packages');
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/packages/:id/toggle', requireAdmin, (req, res) => {
-  db.prepare('UPDATE packages SET active = NOT active WHERE id = ?').run(req.params.id);
-  res.redirect('/admin/packages');
+router.post('/packages/:id/toggle', requireAdmin, async (req, res, next) => {
+  try {
+    await db.run('UPDATE packages SET active = NOT active WHERE id = ?', [req.params.id]);
+    res.redirect('/admin/packages');
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/packages/:id/delete', requireAdmin, (req, res) => {
-  db.prepare('DELETE FROM packages WHERE id = ?').run(req.params.id);
-  res.redirect('/admin/packages');
+router.post('/packages/:id/delete', requireAdmin, async (req, res, next) => {
+  try {
+    await db.run('DELETE FROM packages WHERE id = ?', [req.params.id]);
+    res.redirect('/admin/packages');
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ---------- VOUCHERS ----------
-router.get('/vouchers', requireAdmin, (req, res) => {
-  const vouchers = db.prepare(`
-    SELECT v.*, p.name AS package_name FROM vouchers v
-    JOIN packages p ON p.id = v.package_id
-    ORDER BY v.created_at DESC LIMIT 200
-  `).all();
-  const packages = db.prepare('SELECT * FROM packages WHERE active = 1').all();
-  res.render('admin/vouchers', { vouchers, packages, adminUsername: req.session.adminUsername });
+router.get('/vouchers', requireAdmin, async (req, res, next) => {
+  try {
+    const vouchers = await db.all(`
+      SELECT v.*, p.name AS package_name FROM vouchers v
+      JOIN packages p ON p.id = v.package_id
+      ORDER BY v.created_at DESC LIMIT 200
+    `);
+    const packages = await db.all('SELECT * FROM packages WHERE active = 1');
+    res.render('admin/vouchers', { vouchers, packages, adminUsername: req.session.adminUsername });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/vouchers/generate', requireAdmin, (req, res) => {
+router.post('/vouchers/generate', requireAdmin, async (req, res, next) => {
   const { package_id, quantity } = req.body;
   const qty = Math.min(Math.max(parseInt(quantity, 10) || 1, 1), 500);
-  const insert = db.prepare('INSERT INTO vouchers (code, package_id) VALUES (?, ?)');
   const codes = [];
-  const insertMany = db.transaction((n) => {
-    for (let i = 0; i < n; i++) {
-      let code;
-      // avoid collisions
-      do {
-        code = generateCode(8);
-      } while (db.prepare('SELECT 1 FROM vouchers WHERE code = ?').get(code));
-      insert.run(code, package_id);
-      codes.push(code);
-    }
-  });
-  insertMany(qty);
-  res.redirect('/admin/vouchers');
+  try {
+    await db.withTransaction(async (tx) => {
+      for (let i = 0; i < qty; i++) {
+        let code;
+        do {
+          code = generateCode(8);
+        } while (await tx.get('SELECT 1 FROM vouchers WHERE code = ?', [code]));
+        await tx.run('INSERT INTO vouchers (code, package_id) VALUES (?, ?)', [code, package_id]);
+        codes.push(code);
+      }
+    });
+    res.redirect('/admin/vouchers');
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Pre-load a voucher onto the router right away (optional - "activate on print")
 // Most deployments instead activate a voucher the moment the customer redeems it
 // via the portal. This endpoint exists if you prefer to push all vouchers to the
 // router in advance.
-router.post('/vouchers/:code/push-to-router', requireAdmin, async (req, res) => {
-  const voucher = db.prepare('SELECT * FROM vouchers WHERE code = ?').get(req.params.code);
-  if (!voucher) return res.status(404).send('Voucher not found');
-  const pkg = db.prepare('SELECT * FROM packages WHERE id = ?').get(voucher.package_id);
+router.post('/vouchers/:code/push-to-router', requireAdmin, async (req, res, next) => {
   try {
+    const voucher = await db.get('SELECT * FROM vouchers WHERE code = ?', [req.params.code]);
+    if (!voucher) return res.status(404).send('Voucher not found');
+    const pkg = await db.get('SELECT * FROM packages WHERE id = ?', [voucher.package_id]);
     await mikrotik.createHotspotUser({
       username: voucher.code,
       password: voucher.code,
@@ -131,50 +160,58 @@ router.post('/vouchers/:code/push-to-router', requireAdmin, async (req, res) => 
     });
     res.redirect('/admin/vouchers');
   } catch (err) {
-    res.status(500).send('Router error: ' + err.message);
+    if (err.message) return res.status(500).send('Router error: ' + err.message);
+    next(err);
   }
 });
 
 // ---------- PAYMENTS (mobile money confirmation queue) ----------
-router.get('/payments', requireAdmin, (req, res) => {
-  const payments = db.prepare(`
-    SELECT p.*, pk.name AS package_name FROM payments p
-    JOIN packages pk ON pk.id = p.package_id
-    ORDER BY p.created_at DESC LIMIT 200
-  `).all();
-  res.render('admin/payments', { payments, adminUsername: req.session.adminUsername });
+router.get('/payments', requireAdmin, async (req, res, next) => {
+  try {
+    const payments = await db.all(`
+      SELECT p.*, pk.name AS package_name FROM payments p
+      JOIN packages pk ON pk.id = p.package_id
+      ORDER BY p.created_at DESC LIMIT 200
+    `);
+    res.render('admin/payments', { payments, adminUsername: req.session.adminUsername });
+  } catch (err) {
+    next(err);
+  }
 });
 
-router.post('/payments/:id/confirm', requireAdmin, async (req, res) => {
-  const payment = db.prepare('SELECT * FROM payments WHERE id = ?').get(req.params.id);
-  if (!payment || payment.status !== 'pending') return res.redirect('/admin/payments');
-
-  const pkg = db.prepare('SELECT * FROM packages WHERE id = ?').get(payment.package_id);
-  let code;
-  do {
-    code = generateCode(8);
-  } while (db.prepare('SELECT 1 FROM vouchers WHERE code = ?').get(code));
-
-  db.prepare('INSERT INTO vouchers (code, package_id, status) VALUES (?, ?, ?)').run(code, pkg.id, 'used');
-
+router.post('/payments/:id/confirm', requireAdmin, async (req, res, next) => {
   try {
+    const payment = await db.get('SELECT * FROM payments WHERE id = ?', [req.params.id]);
+    if (!payment || payment.status !== 'pending') return res.redirect('/admin/payments');
+
+    const pkg = await db.get('SELECT * FROM packages WHERE id = ?', [payment.package_id]);
+    let code;
+    do {
+      code = generateCode(8);
+    } while (await db.get('SELECT 1 FROM vouchers WHERE code = ?', [code]));
+
+    await db.run('INSERT INTO vouchers (code, package_id, status) VALUES (?, ?, ?)', [code, pkg.id, 'used']);
+
     await mikrotik.createHotspotUser({
       username: code,
       password: code,
       limitUptime: minutesToRouterosUptime(pkg.duration_minutes),
       dataCapMb: pkg.data_cap_mb
     });
-    db.prepare(`UPDATE payments SET status = 'confirmed', confirmed_at = datetime('now'), voucher_code = ? WHERE id = ?`)
-      .run(code, payment.id);
+    await db.run(`UPDATE payments SET status = 'confirmed', confirmed_at = NOW(), voucher_code = ? WHERE id = ?`, [code, payment.id]);
+    res.redirect('/admin/payments');
   } catch (err) {
-    return res.status(500).send('Payment confirmed in records but router error occurred: ' + err.message + '. Voucher code: ' + code + ' (push it manually from the Vouchers page).');
+    next(err);
   }
-  res.redirect('/admin/payments');
 });
 
-router.post('/payments/:id/reject', requireAdmin, (req, res) => {
-  db.prepare(`UPDATE payments SET status = 'rejected' WHERE id = ?`).run(req.params.id);
-  res.redirect('/admin/payments');
+router.post('/payments/:id/reject', requireAdmin, async (req, res, next) => {
+  try {
+    await db.run(`UPDATE payments SET status = 'rejected' WHERE id = ?`, [req.params.id]);
+    res.redirect('/admin/payments');
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ---------- ROUTER STATUS / SETTINGS TEST ----------
@@ -184,11 +221,15 @@ router.get('/router-status', requireAdmin, async (req, res) => {
 });
 
 // ---------- CHANGE PASSWORD ----------
-router.post('/change-password', requireAdmin, (req, res) => {
+router.post('/change-password', requireAdmin, async (req, res, next) => {
   const { new_password } = req.body;
   const hash = bcrypt.hashSync(new_password, 10);
-  db.prepare('UPDATE admins SET password_hash = ? WHERE id = ?').run(hash, req.session.adminId);
-  res.redirect('/admin/dashboard');
+  try {
+    await db.run('UPDATE admins SET password_hash = ? WHERE id = ?', [hash, req.session.adminId]);
+    res.redirect('/admin/dashboard');
+  } catch (err) {
+    next(err);
+  }
 });
 
 module.exports = router;

@@ -4,8 +4,6 @@ const session = require('express-session');
 const path = require('path');
 const cron = require('node-cron');
 
-require('./config/db'); // ensures DB + tables exist on boot
-
 const adminRoutes = require('./routes/adminRoutes');
 const portalRoutes = require('./routes/portalRoutes');
 const db = require('./config/db');
@@ -37,15 +35,27 @@ app.get('/', (req, res) => res.redirect('/portal'));
 // Housekeeping: mark old pending payments as rejected after 30 min so they
 // don't clutter the admin queue forever.
 cron.schedule('*/10 * * * *', () => {
-  db.prepare(`
+  db.run(`
     UPDATE payments SET status = 'rejected'
-    WHERE status = 'pending' AND created_at < datetime('now', '-30 minutes')
-  `).run();
+    WHERE status = 'pending' AND created_at < DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+  `).catch((err) => {
+    console.error('Payment housekeeping failed:', err);
+  });
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`WiFi billing app running on http://0.0.0.0:${PORT}`);
-  console.log(`Admin panel: http://<this-device-ip>:${PORT}/admin/login`);
-  console.log(`Customer portal: http://<this-device-ip>:${PORT}/portal`);
+
+async function start() {
+  await db.initDb();
+
+  app.listen(PORT, () => {
+    console.log(`WiFi billing app running on http://0.0.0.0:${PORT}`);
+    console.log(`Admin panel: http://<this-device-ip>:${PORT}/admin/login`);
+    console.log(`Customer portal: http://<this-device-ip>:${PORT}/portal`);
+  });
+}
+
+start().catch((err) => {
+  console.error('Failed to start NetVend:', err);
+  process.exit(1);
 });
